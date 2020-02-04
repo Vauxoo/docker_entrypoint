@@ -88,9 +88,10 @@ def get_odoo_vars(getter_func, prefix="ODOORC_"):
 
 def update_sentry(config, getter_func):
     if config.get('sentry_enabled', False):
+        it = getter_func('INSTANCE_TYPE') if 'INSTANCE_TYPE' in getter_func() else 'develop'
         config.update({
             'sentry_odoo_dir': '/home/odoo/instance/odoo',
-            'sentry_environment': getter_func('INSTANCE_TYPE', 'develop')
+            'sentry_environment': it if it else 'develop'
         })
     return config
 
