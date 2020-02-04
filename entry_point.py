@@ -88,15 +88,14 @@ def get_odoo_vars(getter_func, prefix="ODOORC_"):
 
 def update_sentry(config, getter_func):
     if config.get('sentry_enabled', False):
-        it = getter_func('INSTANCE_TYPE') if 'INSTANCE_TYPE' in getter_func() else 'develop'
         config.update({
             'sentry_odoo_dir': '/home/odoo/instance/odoo',
-            'sentry_environment': it if it else 'develop'
+            'sentry_environment': getter_func('INSTANCE_TYPE', 'develop')
         })
     return config
 
 
-def append_values(file_name, getter_func):
+def append_values(file_name, getter_func, environ_items):
     """
     Append values to a config file, new values are gotten from env vars. All the variables must start with ODOORC_
     otherwise will be ignored (so we make sure not to append all variables)
@@ -108,8 +107,9 @@ def append_values(file_name, getter_func):
           "ODOORC_VARIABLE_NAME": 123,
           "ODOORC_ANOTHER_VARIABLE_NAME": "asd"
         }
+    :param environ_items: result of environ.items or list of environment values to use
     """
-    variables = get_odoo_vars(getter_func)
+    variables = get_odoo_vars(environ_items)
     variables = update_sentry(variables, getter_func)
 
     for line in fileinput.input(file_name, inplace=True):
@@ -208,7 +208,7 @@ def main():
 
     check_container_type()
     change_values(CONFIGFILE_PATH, getter_func)
-    append_values(CONFIGFILE_PATH, environ.items)
+    append_values(CONFIGFILE_PATH, getter_func, environ.items)
     if not path.exists(FILESTORE_PATH):
         call(["mkdir", "-p", FILESTORE_PATH])
 
