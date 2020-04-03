@@ -6,9 +6,10 @@ for backward compatibility, but the instances that are running in a multi-contai
 should be executed calling the Odoo binary directly
 """
 
+import argparse
 import fileinput
 import logging
-from os import stat, path, getenv, environ
+from os import stat, path, getenv, environ, setgid, setuid
 import pwd
 import random
 import re
@@ -16,6 +17,7 @@ import shlex
 from shutil import copy2
 import string
 from subprocess import call
+import sys
 
 
 logging.basicConfig(
@@ -186,11 +188,12 @@ def check_container_type():
             environ[config.upper()] = str(value)
 
 
-def main():
+def prepare(args):
     """
-    Main entry point function
-    """
+    Function to prepare the container and odoo configuration before running the requested command
 
+    :param args: args parsed by argparse
+    """
     chmod_cmds = [
         "chmod ugo+rwxt /tmp",
         "chmod ugo+rw /var/log/supervisor",
@@ -199,7 +202,7 @@ def main():
         "chown -R odoo:odoo /home/odoo/.ssh"
     ]
 
-    logger.info("Entering entry point main function")
+    logger.info("Preparing files")
     if not path.isfile(CONFIGFILE_PATH):
         copy2("/external_files/openerp_serverrc", CONFIGFILE_PATH)
 
@@ -217,9 +220,93 @@ def main():
     for chmod in chmod_cmds:
         call(shlex.split(chmod))
 
+
+def demote(user_uid, user_gid):
+    """Pass the function 'set_ids' to preexec_fn, rather than just calling
+    setuid and setgid. This will change the ids for that subprocess only"""
+
+    def set_ids():
+        setgid(user_gid)
+        setuid(user_uid)
+
+    return set_ids
+
+
+def run_cmd_as(cmd, user, env=None):
+    """
+    Execute a command as a given user
+    :param cmd: A string with the command to be executed
+    :param user: Run the command as user
+    :param env: The environment to be set for the command
+    :return:
+    """
+    uid = pwd.getpwnam(user).pw_uid
+    gid = pwd.getpwnam(user).pw_gid
+    call(shlex.split(cmd), preexec_fn=demote(uid, gid), env=env)
+
+
+def start(args):
+    """
+    Main entry point function, this will start supervisor
+    :param args: the result from argparse
+    """
     logger.info("All changes made, now will run supervisord")
     call(["supervisord", "-c", "/etc/supervisor/supervisord.conf"])
 
 
+def run_cmd(args):
+    """
+    Just execute the received command (can be bash, odoo command like update, etc)
+    :param args: the result from argparse
+    """
+    logger.info("All changes made, now will run the command")
+    cmd = args.command[0]
+    logger.debug(str(args.command))
+    run_cmd_as(cmd, args.user)
+
+
+def run_cou(args):
+    """
+    Execute click-odoo-update to update the database
+    :param args: the result from argparse
+    """
+    logger.info("Staring click-odoo-update")
+    cmd = "click-odoo-update -c {cfg} --logfile /tmp/deployvlogs/cou_update.log"
+    if args.db_name:
+        cmd += ' -d {db_name}'
+    cmd = cmd.format(
+        cfg=CONFIGFILE_PATH,
+        db_name=args.db_name)
+    env = environ.copy()
+    env["PYTHONPATH"] = "/home/odoo/instance/odoo:" + env.get("PYTHONPATH", "")
+    run_cmd_as(cmd, 'odoo', env)
+
+
 if __name__ == '__main__':
-    main()
+    # This is a hack to make it compatible with p2
+    # it don't like the default neither required false
+    if len(sys.argv) < 2:
+        sys.argv.append('start')
+    parser = argparse.ArgumentParser(add_help=False)
+    subparsers = parser.add_subparsers(help='commands', dest='cmd')
+    subparsers.required = False
+    subparsers.default = 'start'
+    run_parser = subparsers.add_parser('run', help='Run a command in bash')
+    run_parser.add_argument('command', type=str, nargs='+', help='Command to be executed')
+    run_parser.add_argument('--user', '-u', type=str,
+                            help='User to run the command', default='root')
+    run_parser.set_defaults(func=run_cmd)
+
+    start_parser = subparsers.add_parser('start', help='Start the instance')
+    start_parser.set_defaults(func=start)
+
+    cou_parser = subparsers.add_parser('cou', help='Update database using click-odoo-update')
+    cou_parser.add_argument('--db_name', '-d', type=str,
+                            help=('Database name, if no db is provided'
+                                  'will use the one in the config file'),
+                            required=False)
+    cou_parser.set_defaults(func=run_cou)
+
+    args = parser.parse_args(sys.argv[1:])
+    prepare(args)
+    args.func(args)
