@@ -8,10 +8,11 @@ __pycache__/
 # Distribution / packaging
 .Python
 env/
+bin/
 build/
+deployv_build/
 develop-eggs/
 dist/
-downloads/
 eggs/
 lib/
 lib64/
@@ -21,34 +22,49 @@ var/
 *.egg-info/
 .installed.cfg
 *.egg
-
-# PyInstaller
-#  Usually these files are written by a python script from a template
-#  before PyInstaller builds the exe, so as to inject date/other infos into it.
-*.manifest
-*.spec
+deployv_build/
 
 # Installer logs
 pip-log.txt
 pip-delete-this-directory.txt
 
-# Unit test / coverage reports
+# Unit test / coverage reports / lint checks
 htmlcov/
 .tox/
 .coverage
 .cache
 nosetests.xml
 coverage.xml
+.eggs
+pylint_vauxoo_light.cfg
 
 # Translations
 *.mo
-*.pot
+
+# Mr Developer
+.mr.developer.cfg
+.project
+.pydevproject
+
+# Rope
+.ropeproject
 
 # Django stuff:
 *.log
+*.pot
 
 # Sphinx documentation
-docs/_build/
+docs/build/
+html
 
-# PyBuilder
-target/
+# Vi swap file
+*.swp
+
+# Pycharm project files
+.idea
+
+# VSCode
+.vscode
+
+# Local virtualenv
+venv
