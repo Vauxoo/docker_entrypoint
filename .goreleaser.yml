@@ -12,7 +12,7 @@ before:
     # you may remove this if you don't need go generate
     - go generate ./...
 builds:
-  - main: ./cmd/godeployv/main.go
+  - main: ./main.go
     id: "entry_point"
     env:
       - CGO_ENABLED=0
