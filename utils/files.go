@@ -27,7 +27,7 @@ func readLines(fileName string) ([]string, error) {
 func appendFiles(odooConfig, filesPath string) error {
 	files, err := os.ReadDir(filesPath)
 	if err != nil {
-		return err
+		return nil
 	}
 	odooLines, err := readLines(odooConfig)
 	if err != nil {
