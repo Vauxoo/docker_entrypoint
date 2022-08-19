@@ -10,6 +10,8 @@ import (
 	"strings"
 )
 
+type envConverter func([]string) map[string]string
+
 // GetOdooUser is for future use, so far we do not plan to use other user that odoo to execute the instance
 func GetOdooUser() string {
 	user := os.Getenv("ODOO_USER")
@@ -52,33 +54,44 @@ func GetInstanceType() (string, error) {
 
 }
 
-// FilterStrings receive a slice of strings and filter them by the 'odoorc_' prefix because these are the variables that
+// DefaultConverter receives a slice of strings with all the env vars and returns a mapping with the keys and values
+// of those env vars.
+func DefaultConverter(list []string) map[string]string {
+	return SplitEnvVars(list)
+}
+
+// OdoorcConverter receives a slice of strings and filters them by the 'odoorc_' prefix because these are the variables that
 // will be replaced in the configuration file, returns them as a map of strings where the key is the key of the
-// configuration
-func FilterStrings(list []string) map[string]string {
+// configuration.
+func OdoorcConverter(list []string) map[string]string {
+	res := make(map[string]string)
+	env_list := SplitEnvVars(list)
+	for k, v := range env_list {
+		if strings.HasPrefix(strings.ToLower(k), "odoorc_") {
+			key := strings.TrimPrefix(strings.ToLower(k), "odoorc_")
+			res[key] = v
+		}
+	}
+	return res
+}
+
+// SplitEnvVars receives a slice of strings and creates a mapping of strings based on the values in the slice separated
+// by `=`. This is used to split the environment variables into a mapping of key: value.
+func SplitEnvVars(list []string) map[string]string {
 	res := make(map[string]string)
 	for _, v := range list {
 		parts := strings.SplitN(v, "=", 2)
 		if len(parts) < 2 {
 			continue
 		}
-		if strings.HasPrefix(strings.ToLower(parts[0]), "odoorc_") {
-			res[parts[0]] = parts[1]
-		}
+		res[parts[0]] = parts[1]
 	}
 	return res
 }
 
-// GetOdooVars receives a slice of strings, filter them by the prefix and return them ready to be used in the
-// configuration file
-func GetOdooVars(vars []string) map[string]string {
-	res := make(map[string]string)
-	list := FilterStrings(vars)
-	for k, v := range list {
-		key := strings.TrimPrefix(strings.ToLower(k), "odoorc_")
-		res[key] = v
-	}
-	return res
+// FilterStrings receives a slice of strings and filters them using the envConverter provided based on a specific criteria.
+func FilterStrings(list []string, converter envConverter) map[string]string {
+	return converter(list)
 }
 
 // UpdateOdooConfig saves the ini object
@@ -140,6 +153,7 @@ func SetupWorker(config *ini.File, containerType string) {
 func UpdateFromVars(config *ini.File, odooVars map[string]string) {
 	sections := config.Sections()
 	for k, v := range odooVars {
+		k = strings.ToLower(k)
 		updated := false
 		for _, section := range sections {
 			if section.HasKey(k) {
@@ -184,9 +198,10 @@ func Odoo() error {
 		log.Errorf("Error loading Odoo config: %s", err.Error())
 		return err
 	}
-
-	odooVars := GetOdooVars(os.Environ())
-
+	fullEnv := os.Environ()
+	defaultVars := FilterStrings(fullEnv, DefaultConverter)
+	UpdateFromVars(odooCfg, defaultVars)
+	odooVars := FilterStrings(fullEnv, OdoorcConverter)
 	UpdateFromVars(odooCfg, odooVars)
 	SetupWorker(odooCfg, os.Getenv("CONTAINER_TYPE"))
 	instanceType, err := GetInstanceType()

@@ -8,36 +8,64 @@ import (
 )
 
 func TestFilterStrings(t *testing.T) {
+	executed := false
+	_ = FilterStrings([]string{}, func([]string) map[string]string {
+		executed = true
+		return nil
+	})
+	if !assert.True(t, executed) {
+		t.Errorf("The function FilterStrings was not called.")
+	}
+}
+
+func TestSplitEnvVars(t *testing.T) {
 	values := []struct {
 		input    []string
 		expected map[string]string
 	}{
 		{
-			[]string{"notfilter=asd", "odoorc_filtered=123", "CAPS_NOTFILTERED=wer", "ODOORC_INCAPS=caps"},
-			map[string]string{"odoorc_filtered": "123", "ODOORC_INCAPS": "caps"},
+			[]string{"var=111", "odoorc_var=123", "CAPS_VAR=wer", "ODOORC_INCAPS=caps"},
+			map[string]string{"var": "111", "odoorc_var": "123", "CAPS_VAR": "wer", "ODOORC_INCAPS": "caps"},
 		},
 	}
 	for _, v := range values {
-		res := FilterStrings(v.input)
+		res := SplitEnvVars(v.input)
 		if !assert.Equal(t, v.expected, res) {
 			t.Errorf("Got: %+v, expected: %+v", res, v.expected)
 		}
 	}
-
 }
 
-func TestFilterGetOdooVars(t *testing.T) {
+func TestDefaultConverter(t *testing.T) {
 	values := []struct {
 		input    []string
 		expected map[string]string
 	}{
 		{
-			[]string{"odoorc_filtered=123", "ODOORC_INCAPS=caps"},
-			map[string]string{"filtered": "123", "incaps": "caps"},
+			[]string{"var=111", "odoorc_var=123", "CAPS_VAR=wer", "ODOORC_INCAPS=caps"},
+			map[string]string{"var": "111", "odoorc_var": "123", "CAPS_VAR": "wer", "ODOORC_INCAPS": "caps"},
 		},
 	}
 	for _, v := range values {
-		res := GetOdooVars(v.input)
+		res := DefaultConverter(v.input)
+		if !assert.Equal(t, v.expected, res) {
+			t.Errorf("Got: %+v, expected: %+v", res, v.expected)
+		}
+	}
+}
+
+func TestOdoorcConverter(t *testing.T) {
+	values := []struct {
+		input    []string
+		expected map[string]string
+	}{
+		{
+			[]string{"var=111", "odoorc_var=123", "CAPS_VAR=wer", "ODOORC_INCAPS=caps"},
+			map[string]string{"var": "123", "incaps": "caps"},
+		},
+	}
+	for _, v := range values {
+		res := OdoorcConverter(v.input)
 		if !assert.Equal(t, v.expected, res) {
 			t.Errorf("Got: %+v, expected: %+v", res, v.expected)
 		}
