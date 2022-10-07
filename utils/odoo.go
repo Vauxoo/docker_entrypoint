@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"entrypoint/utils"
 	"fmt"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/ini.v1"
@@ -94,10 +95,13 @@ func FilterStrings(list []string, converter envConverter) map[string]string {
 	return converter(list)
 }
 
-// UpdateOdooConfig saves the ini object
+// UpdateOdooConfig saves the ini object and updates the addons paths
 func UpdateOdooConfig(config *ini.File) error {
 	cfgFile := GetConfigFile()
 	if err := config.SaveTo(cfgFile); err != nil {
+		return err
+	}
+	if err := utils.RunAndLogCmdAs("python /home/odoo/getaddons.py /home/odoo/instance/extra_addons", "", nil); err != nil {
 		return err
 	}
 	return nil
