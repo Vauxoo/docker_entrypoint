@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"entrypoint/utils"
 	"fmt"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/ini.v1"
@@ -101,7 +100,7 @@ func UpdateOdooConfig(config *ini.File) error {
 	if err := config.SaveTo(cfgFile); err != nil {
 		return err
 	}
-	if err := utils.RunAndLogCmdAs("python /home/odoo/getaddons.py /home/odoo/instance/extra_addons", "", nil); err != nil {
+	if err := RunAndLogCmdAs("python /home/odoo/getaddons.py /home/odoo/instance/extra_addons", "", nil); err != nil {
 		return err
 	}
 	return nil
