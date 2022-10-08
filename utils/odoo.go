@@ -149,11 +149,12 @@ func SetupWorker(config *ini.File, containerType string) {
 	}
 }
 
-// UpdateFromVars will updae the odoo configuration from env vars wich should start with ODOORC_ prefix, if the exists
-// the value  will be updated else the parameter will be added to the 'options' section which is the default for Odoo.
+// UpdateFromVars will update the odoo configuration from env vars wich should start with ODOORC_ prefix, if the exists
+// the value  will be updated else the parameter will be added to the 'options' section only when appendNew == true,
+// which is the default for Odoo.
 // If you wish to add it to another section add the desired section to '/external_files/openerp_serverrc' or add
 // the file with only that section to '/external_files/odoocfg'
-func UpdateFromVars(config *ini.File, odooVars map[string]string) {
+func UpdateFromVars(config *ini.File, odooVars map[string]string, appendNew bool) {
 	sections := config.Sections()
 	for k, v := range odooVars {
 		k = strings.ToLower(k)
@@ -165,8 +166,8 @@ func UpdateFromVars(config *ini.File, odooVars map[string]string) {
 				break
 			}
 		}
-		// The key does not exist so we add it into the options section
-		if !updated {
+		// The key does not exist and we want to force append, so we add it into the options section
+		if !updated && appendNew {
 			config.Section("options").Key(k).SetValue(v)
 		}
 	}
@@ -203,9 +204,9 @@ func Odoo() error {
 	}
 	fullEnv := os.Environ()
 	defaultVars := FilterStrings(fullEnv, DefaultConverter)
-	UpdateFromVars(odooCfg, defaultVars)
+	UpdateFromVars(odooCfg, defaultVars, false)
 	odooVars := FilterStrings(fullEnv, OdoorcConverter)
-	UpdateFromVars(odooCfg, odooVars)
+	UpdateFromVars(odooCfg, odooVars, true)
 	SetupWorker(odooCfg, os.Getenv("CONTAINER_TYPE"))
 	instanceType, err := GetInstanceType()
 	if err != nil {
