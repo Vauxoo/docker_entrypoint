@@ -2,12 +2,14 @@ package utils
 
 import (
 	"fmt"
-	log "github.com/sirupsen/logrus"
-	"gopkg.in/ini.v1"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	log "github.com/sirupsen/logrus"
+	"golang.org/x/mod/semver"
+	"gopkg.in/ini.v1"
 )
 
 type envConverter func([]string) map[string]string
@@ -177,13 +179,19 @@ func UpdateFromVars(config *ini.File, odooVars map[string]string, appendNew bool
 // - Won't allow admin as default super user password, a random string is generated
 // - Won't allow to change the default ports because inside the container is not needed and will mess with the external
 // - Disable logrotate since supervisor will handle that
-func SetDefaults(config *ini.File) {
+func SetDefaults(config *ini.File, version string) {
 	config.Section("options").Key("xmlrpc_port").SetValue("8069")
 	config.Section("options").Key("longpolling_port").SetValue("8072")
 	config.Section("options").Key("logrorate").SetValue("False")
 	if config.Section("options").Key("admin_passwd").Value() == "admin" ||
 		config.Section("options").Key("admin_passwd").Value() == "" {
 		config.Section("options").Key("admin_passwd").SetValue(RandStringRunes(64))
+	}
+	if semver.Compare(version, "v16.0") != -1 {
+		config.Section("options").DeleteKey("longpolling_port")
+		config.Section("options").DeleteKey("xmlrpc_port")
+		config.Section("options").Key("gevent_port").SetValue("8072")
+		config.Section("options").Key("http_port").SetValue("8069")
 	}
 }
 
@@ -214,7 +222,7 @@ func Odoo() error {
 	}
 	log.Debugf("Instance type: %s", instanceType)
 	UpdateSentry(odooCfg, instanceType)
-	SetDefaults(odooCfg)
+	SetDefaults(odooCfg, parseVersion(os.Getenv("VERSION")))
 	autostart := true
 	if os.Getenv("AUTOSTART") != "" {
 		autostart, err = strconv.ParseBool(os.Getenv("AUTOSTART"))
@@ -274,4 +282,15 @@ func prepareFiles() error {
 		}
 	}
 	return nil
+}
+
+func parseVersion(v string) string {
+	wV := strings.ToLower(v)
+	if strings.Contains(wV, "saas") {
+		parts := strings.SplitN(v, "-", 2)
+		if len(parts) == 2 {
+			return "v" + parts[1]
+		}
+	}
+	return "v" + v
 }

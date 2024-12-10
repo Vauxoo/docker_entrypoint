@@ -103,6 +103,30 @@ func TestGetInstanceType(t *testing.T) {
 	assert.Errorf(t, err, "cannot determine the instance type, env vars INSTANCE_TYPE and ODOO_STAGE 'must' match")
 }
 
+func TestParseVersion(t *testing.T) {
+	test := []struct {
+		given string
+		want  string
+	}{
+		{
+			given: "17.0",
+			want:  "v17.0",
+		},
+		{
+			given: "saas-8",
+			want:  "v8",
+		},
+		{
+			given: "saas-17.4",
+			want:  "v17.4",
+		},
+	}
+
+	for _, c := range test {
+		assert.Equal(t, c.want, parseVersion(c.given))
+	}
+}
+
 //func TestUpdateSentry(t *testing.T) {
 //	values := []struct{
 //		input map[string]string
