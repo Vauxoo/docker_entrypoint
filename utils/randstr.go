@@ -2,7 +2,6 @@ package utils
 
 import (
 	"math/rand"
-	"time"
 )
 
 var letterRunes = []rune("abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ")
@@ -14,8 +13,4 @@ func RandStringRunes(n int) string {
 		b[i] = letterRunes[rand.Intn(len(letterRunes))]
 	}
 	return string(b)
-}
-
-func init() {
-	rand.Seed(time.Now().UnixNano())
 }
